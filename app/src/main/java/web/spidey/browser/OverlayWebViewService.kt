@@ -81,6 +81,9 @@ class OverlayWebViewService : Service() {
             settings.setGeolocationEnabled(false)
             settings.setSaveFormData(false)
             settings.setSavePassword(false)
+            settings.setJavaScriptCanOpenWindowsAutomatically(false)
+            settings.loadsImagesAutomatically = true
+            settings.blockNetworkImage = false
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             }
