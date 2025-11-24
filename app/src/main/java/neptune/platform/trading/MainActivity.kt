@@ -1,4 +1,4 @@
-package web.spidey.browser
+package neptune.platform.trading
 
 import android.content.Intent
 import android.net.Uri
@@ -13,7 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.activity.OnBackPressedCallback
-import web.spidey.browser.databinding.ActivityMainBinding
+import neptune.platform.trading.databinding.ActivityMainBinding
 import androidx.core.content.ContextCompat
 import androidx.core.app.ActivityCompat
 import android.content.pm.PackageManager

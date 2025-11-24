@@ -1,4 +1,4 @@
-package web.spidey.browser
+package neptune.platform.trading
 
 import org.junit.Test
 

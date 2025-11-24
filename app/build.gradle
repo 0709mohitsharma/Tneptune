@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'web.spidey.browser'
+    namespace 'neptune.platform.trading'
     compileSdk 36
 
     defaultConfig {
-        applicationId "web.spidey.browser"
+        applicationId "neptune.platform.trading"
         minSdk 31
         targetSdk 36
         versionCode 1

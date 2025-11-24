@@ -1,4 +1,4 @@
-package web.spidey.browser
+package neptune.platform.trading
 
 import android.app.Notification
 import android.app.NotificationChannel
