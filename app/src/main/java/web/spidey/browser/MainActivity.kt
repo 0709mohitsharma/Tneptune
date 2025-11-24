@@ -14,6 +14,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.activity.OnBackPressedCallback
 import web.spidey.browser.databinding.ActivityMainBinding
 import androidx.core.content.ContextCompat
+import androidx.core.app.ActivityCompat
+import android.content.pm.PackageManager
+import android.Manifest
 
 class MainActivity : AppCompatActivity() {
 
@@ -36,6 +39,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         ensureOverlayPermission()
+        requestIgnoreBatteryOptimization()
+        requestNotificationPermission()
 
         val svc = Intent(this, OverlayWebViewService::class.java)
         svc.putExtra(OverlayWebViewService.EXTRA_URL, tradingUrl)
@@ -50,6 +55,22 @@ class MainActivity : AppCompatActivity() {
                 val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:$packageName"))
                 startActivity(intent)
+            }
+        }
+    }
+
+    private fun requestIgnoreBatteryOptimization() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                Uri.parse("package:$packageName"))
+            startActivity(intent)
+        }
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
             }
         }
     }

@@ -61,7 +61,7 @@ class OverlayWebViewService : Service() {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true   // Re-enable for site functionality
             settings.databaseEnabled = true      // Re-enable for site functionality
-            settings.cacheMode = WebSettings.LOAD_NO_CACHE  // Force fresh loads for live data
+            settings.cacheMode = WebSettings.LOAD_DEFAULT   // Allow caching of static content like images, but dynamic data remains live
             settings.allowFileAccess = false     // Security: disable file access
             settings.allowContentAccess = false  // Security: disable content access
             settings.allowUniversalAccessFromFileURLs = false  // Security: restrict
@@ -349,8 +349,8 @@ class OverlayWebViewService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        android.util.Log.d("WebViewService", "onTaskRemoved called - SERVICE STILL ALIVE")
-        // DON'T stop the service when task is removed - keep it running
+        android.util.Log.d("WebViewService", "onTaskRemoved called - STOPPING SERVICE")
+        stopSelf()  // Stop the service when app is removed from recent apps
         super.onTaskRemoved(rootIntent)
     }
 }
