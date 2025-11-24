@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.view.View
+import android.view.OrientationEventListener
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -21,6 +22,7 @@ import android.Manifest
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var orientationListener: OrientationEventListener
     private val TAG = "TradingWebView"
 //        private val tradingUrl = "https://www.google.com"
     private val tradingUrl = "https://tv.dhan.co"
@@ -47,6 +49,8 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.startForegroundService(this, svc)
 
         setupBackPressedHandler()
+
+        setupOrientationListener()
     }
 
     private fun ensureOverlayPermission() {
@@ -99,6 +103,24 @@ class MainActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(callback)
     }
 
+    private fun setupOrientationListener() {
+        orientationListener = object : OrientationEventListener(this) {
+            override fun onOrientationChanged(orientation: Int) {
+                val decorView = window.decorView
+                if (orientation in 45..135 || orientation in 225..315) {
+                    // Landscape mode: hide status bar and navigation bar
+                    decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN
+                            or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+                } else {
+                    // Portrait mode: show status bar and navigation bar
+                    decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+                }
+            }
+        }
+        orientationListener.enable()
+    }
+
     override fun onResume() {
         super.onResume()
         Log.d(TAG, "MainActivity onResume - setting foreground mode")
@@ -115,5 +137,10 @@ class MainActivity : AppCompatActivity() {
         i.action = OverlayWebViewService.ACTION_SET_MODE
         i.putExtra(OverlayWebViewService.EXTRA_MODE, OverlayWebViewService.MODE_BACKGROUND)
         startService(i)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        orientationListener.disable()
     }
 }
