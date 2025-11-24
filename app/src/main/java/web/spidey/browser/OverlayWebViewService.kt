@@ -15,6 +15,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -58,25 +59,34 @@ class OverlayWebViewService : Service() {
         webView = WebView(this@OverlayWebViewService).apply {
             android.util.Log.d("WebViewService", "Creating new WebView")
             settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.databaseEnabled = true
-            settings.cacheMode = WebSettings.LOAD_NO_CACHE
-            settings.allowFileAccess = true
-            settings.allowContentAccess = true
-            settings.allowUniversalAccessFromFileURLs = true
-            settings.allowFileAccessFromFileURLs = true
-            settings.mediaPlaybackRequiresUserGesture = false
+            settings.domStorageEnabled = true   // Re-enable for site functionality
+            settings.databaseEnabled = true      // Re-enable for site functionality
+            settings.cacheMode = WebSettings.LOAD_NO_CACHE  // Force fresh loads for live data
+            settings.allowFileAccess = false     // Security: disable file access
+            settings.allowContentAccess = false  // Security: disable content access
+            settings.allowUniversalAccessFromFileURLs = false  // Security: restrict
+            settings.allowFileAccessFromFileURLs = false      // Security: restrict
+            settings.mediaPlaybackRequiresUserGesture = true  // Battery: disable auto media
             settings.defaultTextEncodingName = "UTF-8"
 
             settings.setRenderPriority(WebSettings.RenderPriority.HIGH)
-            settings.setSupportZoom(true)
+            settings.setSupportZoom(false)       // Battery: disable zoom if not needed
             settings.useWideViewPort = true
             settings.loadWithOverviewMode = true
-            settings.builtInZoomControls = true
+            settings.builtInZoomControls = false // Battery: disable zoom controls
             settings.displayZoomControls = false
 
+            // Additional optimizations for speed and battery
+            settings.setSupportMultipleWindows(false)
+            settings.setGeolocationEnabled(false)
+            settings.setSaveFormData(false)
+            settings.setSavePassword(false)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            }
+
             webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     android.util.Log.d("WebViewService", "WebViewClient.shouldOverrideUrlLoading called")
                     return false
                 }
@@ -152,7 +162,7 @@ class OverlayWebViewService : Service() {
 
         val params = if (mode == MODE_BACKGROUND) {
             WindowManager.LayoutParams(
-                1, 1,
+                100, 100,  // Temporarily larger for visibility
                 layoutFlag,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                         WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
