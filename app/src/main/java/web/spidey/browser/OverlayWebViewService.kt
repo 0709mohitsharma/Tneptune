@@ -117,6 +117,9 @@ class OverlayWebViewService : Service() {
             isFocusableInTouchMode = true
             requestFocus()
 
+            // Reduce GPU load to prevent frame skips
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+
             // Handle the hardware/back key when this overlay has focus
             setOnKeyListener { v, keyCode, event ->
                 if (event.action == KeyEvent.ACTION_UP && keyCode == KeyEvent.KEYCODE_BACK) {
@@ -200,11 +203,13 @@ class OverlayWebViewService : Service() {
                 wv.isFocusable = false
                 wv.isClickable = false
                 wv.isFocusableInTouchMode = false
+                wv.setVisibility(View.INVISIBLE)  // Hide but keep running
                 android.util.Log.d("WebViewService", "Set to background mode")
             } else {
                 wv.isFocusable = true
                 wv.isClickable = true
                 wv.isFocusableInTouchMode = true
+                wv.setVisibility(View.VISIBLE)    // Show in foreground
                 wv.requestFocus()
                 android.util.Log.d("WebViewService", "Set to foreground mode, requesting focus")
             }
