@@ -1,0 +1,22 @@
+// In your build.gradle (Project level)
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                compileSdk 36
+                kotlinOptions {
+                    jvmTarget = '11'
+                }
+            }
+        }
+    }
+}
+
+// Add this to ensure consistent Kotlin versions
+configurations.configureEach {
+    resolutionStrategy {
+        force "org.jetbrains.kotlin:kotlin-stdlib:${libs.versions.kotlin.get()}"
+        force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${libs.versions.kotlin.get()}"
+        force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${libs.versions.kotlin.get()}"
+    }
+}
