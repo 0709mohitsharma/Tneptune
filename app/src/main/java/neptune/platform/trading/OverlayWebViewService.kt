@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.net.Uri
 import android.os.Build
@@ -30,6 +31,7 @@ class OverlayWebViewService : Service() {
 
         const val ACTION_SET_MODE = "web.spidey.browser.ACTION_SET_MODE"
         const val EXTRA_MODE = "extra_mode"
+        const val EXTRA_ORIENTATION = "extra_orientation"
         const val MODE_BACKGROUND = 0
         const val MODE_FOREGROUND = 1
 
@@ -148,15 +150,15 @@ class OverlayWebViewService : Service() {
             }
         }
 
-        addWebViewToWindow(mode = MODE_BACKGROUND)
+        addWebViewToWindow(mode = MODE_BACKGROUND, orientation = Configuration.ORIENTATION_PORTRAIT)
         urlToLoad?.let {
             android.util.Log.d("WebViewService", "Loading URL: $it")
             webView?.loadUrl(it)
         }
     }
 
-    private fun addWebViewToWindow(mode: Int) {
-        android.util.Log.d("WebViewService", "addWebViewToWindow called, mode: $mode")
+    private fun addWebViewToWindow(mode: Int, orientation: Int = Configuration.ORIENTATION_PORTRAIT) {
+        android.util.Log.d("WebViewService", "addWebViewToWindow called, mode: $mode, orientation: $orientation")
         if (!Settings.canDrawOverlays(this)) {
             android.util.Log.d("WebViewService", "No overlay permission, stopping service")
             stopSelf()
@@ -182,12 +184,13 @@ class OverlayWebViewService : Service() {
                 x = 0; y = 0
             }
         } else {
+            val flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
             WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
                 layoutFlag,
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                flags,
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
@@ -272,8 +275,9 @@ class OverlayWebViewService : Service() {
         when (intent.action) {
             ACTION_SET_MODE -> {
                 val mode = intent.getIntExtra(EXTRA_MODE, MODE_BACKGROUND)
-                android.util.Log.d("WebViewService", "Setting mode to: $mode")
-                setMode(mode)
+                val orientation = intent.getIntExtra(EXTRA_ORIENTATION, Configuration.ORIENTATION_PORTRAIT)
+                android.util.Log.d("WebViewService", "Setting mode to: $mode, orientation: $orientation")
+                setMode(mode, orientation)
             }
             ACTION_GO_BACK -> {
                 android.util.Log.d("WebViewService", "Processing GO_BACK action - IMMEDIATELY")
@@ -296,12 +300,12 @@ class OverlayWebViewService : Service() {
         return START_STICKY
     }
 
-    fun setMode(mode: Int) {
-        android.util.Log.d("WebViewService", "setMode called with: $mode")
+    fun setMode(mode: Int, orientation: Int = Configuration.ORIENTATION_PORTRAIT) {
+        android.util.Log.d("WebViewService", "setMode called with: $mode, orientation: $orientation")
         ensureWebView()
         webView?.post {
             android.util.Log.d("WebViewService", "Executing addWebViewToWindow from post")
-            addWebViewToWindow(mode)
+            addWebViewToWindow(mode, orientation)
             if (mode == MODE_FOREGROUND) {
                 webView?.requestFocus()
                 android.util.Log.d("WebViewService", "Requested focus for foreground mode")

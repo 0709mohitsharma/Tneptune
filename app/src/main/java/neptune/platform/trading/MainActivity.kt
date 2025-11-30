@@ -107,15 +107,10 @@ class MainActivity : AppCompatActivity() {
         orientationListener = object : OrientationEventListener(this) {
             override fun onOrientationChanged(orientation: Int) {
                 val decorView = window.decorView
-                if (orientation in 45..135 || orientation in 225..315) {
-                    // Landscape mode: hide status bar and navigation bar
-                    decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN
-                            or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
-                } else {
-                    // Portrait mode: show status bar and navigation bar
-                    decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
-                }
+                // Hide status bar and navigation bar in both orientations
+                decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN
+                        or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
             }
         }
         orientationListener.enable()
@@ -127,6 +122,7 @@ class MainActivity : AppCompatActivity() {
         val i = Intent(this, OverlayWebViewService::class.java)
         i.action = OverlayWebViewService.ACTION_SET_MODE
         i.putExtra(OverlayWebViewService.EXTRA_MODE, OverlayWebViewService.MODE_FOREGROUND)
+        i.putExtra(OverlayWebViewService.EXTRA_ORIENTATION, resources.configuration.orientation)
         startService(i)
     }
 
@@ -136,6 +132,7 @@ class MainActivity : AppCompatActivity() {
         val i = Intent(this, OverlayWebViewService::class.java)
         i.action = OverlayWebViewService.ACTION_SET_MODE
         i.putExtra(OverlayWebViewService.EXTRA_MODE, OverlayWebViewService.MODE_BACKGROUND)
+        i.putExtra(OverlayWebViewService.EXTRA_ORIENTATION, resources.configuration.orientation)
         startService(i)
     }
 
