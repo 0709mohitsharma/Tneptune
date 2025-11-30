@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Peter Browser"
+rootProject.name = "Tneptune"
 include ':app'

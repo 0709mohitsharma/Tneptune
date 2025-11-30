@@ -56,6 +56,9 @@ class OverlayWebViewService : Service() {
             return
         }
 
+        // Enable WebView debugging for troubleshooting
+        WebView.setWebContentsDebuggingEnabled(true)
+
         webView = WebView(this@OverlayWebViewService).apply {
             android.util.Log.d("WebViewService", "Creating new WebView")
             settings.javaScriptEnabled = true
@@ -85,7 +88,7 @@ class OverlayWebViewService : Service() {
             settings.loadsImagesAutomatically = true
             settings.blockNetworkImage = false
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             }
 
             webViewClient = object : WebViewClient() {
@@ -120,8 +123,8 @@ class OverlayWebViewService : Service() {
             isFocusableInTouchMode = true
             requestFocus()
 
-            // Reduce GPU load to prevent frame skips
-            setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+            // Enable hardware acceleration for WebGL charts
+            setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
             // Handle the hardware/back key when this overlay has focus
             setOnKeyListener { v, keyCode, event ->
