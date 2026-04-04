@@ -1,15 +1,20 @@
 package neptune.platform.trading
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
+import android.os.WorkSource
 import android.provider.Settings
 import android.view.Gravity
 import android.view.KeyEvent
@@ -26,6 +31,7 @@ class OverlayWebViewService : Service() {
 
     companion object {
         const val CHANNEL_ID = "overlay_webview_channel"
+        const val CHANNEL_ID_IMPORTANT = "overlay_webview_important_channel"
         const val NOTIF_ID = 1001
         const val EXTRA_URL = "extra_url"
 
@@ -42,13 +48,34 @@ class OverlayWebViewService : Service() {
     private var webView: WebView? = null
     private var currentParams: WindowManager.LayoutParams? = null
     private var urlToLoad: String? = null
+    
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var isScreenAwake = false
 
     override fun onCreate() {
         super.onCreate()
         android.util.Log.d("WebViewService", "OverlayWebViewService.onCreate() - SERVICE CREATED")
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         createNotificationChannel()
-        startForeground(NOTIF_ID, buildNotification("Trading WebView running"))
+        
+        acquireWakeLock()
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIF_ID, buildNotification("Trading WebView running"), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            startForeground(NOTIF_ID, buildNotification("Trading WebView running"))
+        }
+    }
+    
+    @SuppressLint("WakelockTimeout")
+    private fun acquireWakeLock() {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ON_AFTER_RELEASE,
+            "PeterBrowser:TradingWebViewWakeLock"
+        ).apply {
+            setWorkSource(WorkSource(null))
+        }
     }
 
     private fun ensureWebView() {
@@ -185,7 +212,8 @@ class OverlayWebViewService : Service() {
             }
         } else {
             val flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON  // Keep screen on when visible
             WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -213,14 +241,16 @@ class OverlayWebViewService : Service() {
                 wv.isClickable = false
                 wv.isFocusableInTouchMode = false
                 wv.setVisibility(View.INVISIBLE)  // Hide but keep running
-                android.util.Log.d("WebViewService", "Set to background mode")
+                releaseScreenWakeLock()
+                android.util.Log.d("WebViewService", "Set to background mode - screen will sleep normally")
             } else {
                 wv.isFocusable = true
                 wv.isClickable = true
                 wv.isFocusableInTouchMode = true
                 wv.setVisibility(View.VISIBLE)    // Show in foreground
                 wv.requestFocus()
-                android.util.Log.d("WebViewService", "Set to foreground mode, requesting focus")
+                acquireScreenWakeLock()
+                android.util.Log.d("WebViewService", "Set to foreground mode - screen kept awake, requesting focus")
             }
         } catch (e: Exception) {
             android.util.Log.e("WebViewService", "Error managing WebView window: ${e.message}", e)
@@ -238,6 +268,38 @@ class OverlayWebViewService : Service() {
             }
         }
     }
+    
+    private fun acquireScreenWakeLock() {
+        if (!isScreenAwake) {
+            try {
+                wakeLock?.let {
+                    if (!it.isHeld) {
+                        it.acquire(10 * 60 * 1000L) // 10 minutes max, will be released on background
+                        android.util.Log.d("WebViewService", "Screen wake lock acquired")
+                    }
+                }
+                isScreenAwake = true
+            } catch (e: Exception) {
+                android.util.Log.e("WebViewService", "Failed to acquire wake lock: ${e.message}", e)
+            }
+        }
+    }
+    
+    private fun releaseScreenWakeLock() {
+        if (isScreenAwake) {
+            try {
+                wakeLock?.let {
+                    if (it.isHeld) {
+                        it.release()
+                        android.util.Log.d("WebViewService", "Screen wake lock released")
+                    }
+                }
+                isScreenAwake = false
+            } catch (e: Exception) {
+                android.util.Log.e("WebViewService", "Failed to release wake lock: ${e.message}", e)
+            }
+        }
+    }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -245,16 +307,27 @@ class OverlayWebViewService : Service() {
             nm?.createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, "Trading WebView Overlay", NotificationManager.IMPORTANCE_LOW)
             )
+            nm?.createNotificationChannel(
+                NotificationChannel(CHANNEL_ID_IMPORTANT, "Trading WebView Active", NotificationManager.IMPORTANCE_HIGH)
+            )
         }
     }
 
-    private fun buildNotification(text: String): Notification {
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+    private fun buildNotification(text: String, important: Boolean = false): Notification {
+        val channelId = if (important) CHANNEL_ID_IMPORTANT else CHANNEL_ID
+        val builder = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Trading WebView")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setOngoing(true)
-            .build()
+            .setPriority(if (important) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+        }
+        
+        return builder.build()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -341,6 +414,7 @@ class OverlayWebViewService : Service() {
 
     override fun onDestroy() {
         android.util.Log.d("WebViewService", "onDestroy called - SERVICE DESTROYED")
+        releaseScreenWakeLock()
         try {
             webView?.let {
                 if (it.parent != null) windowManager.removeViewImmediate(it)
