@@ -4,66 +4,154 @@ import android.content.Context
 import android.os.Environment
 import android.util.Log
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 
 object ConfigManager {
     private const val TAG = "ConfigManager"
     private const val FOLDER_NAME = "Tneptune"
     private const val FILE_NAME = "config.txt"
     private const val KEY_TRADING_URL = "trading_url"
+    private const val KEY_NOTIFICATION_TITLE = "notification_title"
+    private const val KEY_NOTIFICATION_MESSAGE = "notification_message"
     private const val DEFAULT_URL = "https://tv-beta.dhan.co/"
+    private const val DEFAULT_NOTIFICATION_TITLE = "Customizable Affirmation"
+    private const val DEFAULT_NOTIFICATION_MESSAGE = "Respect the market and it will respect you..."
     private const val CONFIG_SEPARATOR = "="
 
+    private val ALL_KEYS = listOf(
+        KEY_TRADING_URL to DEFAULT_URL,
+        KEY_NOTIFICATION_TITLE to DEFAULT_NOTIFICATION_TITLE,
+        KEY_NOTIFICATION_MESSAGE to DEFAULT_NOTIFICATION_MESSAGE
+    )
+
     private var cachedUrl: String? = null
+    private var cachedNotificationTitle: String? = null
+    private var cachedNotificationMessage: String? = null
+
+    private fun getConfigFile(): File {
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val appFolder = File(downloadsDir, FOLDER_NAME)
+        return File(appFolder, FILE_NAME)
+    }
+
+    private fun ensureConfigFileIsComplete(file: File) {
+        if (!file.exists()) {
+            createDefaultConfig(file)
+            return
+        }
+
+        try {
+            val existingContent = file.readText()
+            val existingKeys = mutableSetOf<String>()
+            
+            existingContent.lineSequence()
+                .filter { it.contains(CONFIG_SEPARATOR) }
+                .map { it.substringBefore(CONFIG_SEPARATOR).trim() }
+                .forEach { key -> existingKeys.add(key) }
+
+            val missingKeys = ALL_KEYS.filter { (key, _) -> key !in existingKeys }
+            
+            if (missingKeys.isNotEmpty()) {
+                Log.d(TAG, "Found missing keys: ${missingKeys.map { it.first }}")
+                
+                val updatedContent = buildString {
+                    append(existingContent)
+                    if (!existingContent.endsWith("\n")) {
+                        append("\n")
+                    }
+                    missingKeys.forEach { (key, defaultValue) ->
+                        append("$key$CONFIG_SEPARATOR$defaultValue\n")
+                    }
+                }
+                
+                file.writeText(updatedContent)
+                Log.d(TAG, "Added missing keys to config file")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error ensuring config completeness: ${e.message}")
+        }
+    }
+
+    private fun getConfigValue(file: File, key: String, defaultValue: String): String {
+        if (!file.exists()) {
+            return defaultValue
+        }
+
+        return try {
+            val content = file.readText()
+            content.lineSequence()
+                .filter { it.trim().startsWith(key) }
+                .map { it.substringAfter(CONFIG_SEPARATOR).trim() }
+                .firstOrNull()
+                ?.takeIf { it.isNotBlank() }
+                ?: defaultValue
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading config key $key: ${e.message}")
+            defaultValue
+        }
+    }
 
     fun getTradingUrl(context: Context): String {
         cachedUrl?.let { return it }
 
         val file = getConfigFile()
-        
         Log.d(TAG, "Config file path: ${file.absolutePath}")
         Log.d(TAG, "Config file exists: ${file.exists()}")
 
-        if (!file.exists()) {
-            Log.d(TAG, "Config file not found, creating default")
-            createDefaultConfig(file)
-            cachedUrl = DEFAULT_URL
-            return DEFAULT_URL
-        }
+        ensureConfigFileIsComplete(file)
+        
+        val value = getConfigValue(file, KEY_TRADING_URL, DEFAULT_URL)
+        Log.d(TAG, "Trading URL: $value")
+        
+        cachedUrl = value
+        return value
+    }
 
-        return try {
-            val content = file.readText()
-            Log.d(TAG, "Config file content:\n$content")
-            
-            content.lineSequence()
-                .filter { it.trim().startsWith(KEY_TRADING_URL) }
-                .map { it.substringAfter(CONFIG_SEPARATOR).trim() }
-                .firstOrNull()
-                ?.takeIf { it.isNotBlank() }
-                ?.also { Log.d(TAG, "Found URL in config: $it") }
-                ?: DEFAULT_URL.also { Log.d(TAG, "No URL found, using default") }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reading config: ${e.message}")
-            DEFAULT_URL
-        }.also {
-            cachedUrl = it
-        }
+    fun getNotificationTitle(context: Context): String {
+        cachedNotificationTitle?.let { return it }
+
+        val file = getConfigFile()
+        ensureConfigFileIsComplete(file)
+
+        val value = getConfigValue(file, KEY_NOTIFICATION_TITLE, DEFAULT_NOTIFICATION_TITLE)
+        cachedNotificationTitle = value
+        return value
+    }
+
+    fun getNotificationMessage(context: Context): String {
+        cachedNotificationMessage?.let { return it }
+
+        val file = getConfigFile()
+        ensureConfigFileIsComplete(file)
+
+        val value = getConfigValue(file, KEY_NOTIFICATION_MESSAGE, DEFAULT_NOTIFICATION_MESSAGE)
+        cachedNotificationMessage = value
+        return value
     }
 
     fun saveTradingUrl(context: Context, url: String): Boolean {
         val file = getConfigFile()
         
         return try {
-            val content = buildString {
-                append("# PeterBrowser Configuration\n")
-                append("# Edit the trading_url below to change the trading platform\n")
-                append("#\n")
-                append("$KEY_TRADING_URL$CONFIG_SEPARATOR$url\n")
+            if (!file.exists()) {
+                createDefaultConfig(file)
+            } else {
+                val content = file.readText()
+                val updatedContent = if (content.contains(KEY_TRADING_URL)) {
+                    content.lineSequence()
+                        .map { line ->
+                            if (line.trim().startsWith(KEY_TRADING_URL)) {
+                                "$KEY_TRADING_URL$CONFIG_SEPARATOR$url"
+                            } else {
+                                line
+                            }
+                        }
+                        .joinToString("\n")
+                } else {
+                    val separator = if (content.endsWith("\n")) "" else "\n"
+                    "$content$separator$KEY_TRADING_URL$CONFIG_SEPARATOR$url\n"
+                }
+                file.writeText(updatedContent)
             }
-            
-            file.parentFile?.mkdirs()
-            file.writeText(content)
             
             cachedUrl = url
             Log.d(TAG, "Saved trading URL: $url")
@@ -78,21 +166,19 @@ object ConfigManager {
         return getConfigFile().absolutePath
     }
 
-    private fun getConfigFile(): File {
-        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val appFolder = File(downloadsDir, FOLDER_NAME)
-        return File(appFolder, FILE_NAME)
-    }
-
     private fun createDefaultConfig(file: File) {
         try {
             file.parentFile?.mkdirs()
             val content = buildString {
                 append("# PeterBrowser Configuration\n")
                 append("# Edit the trading_url below to change the trading platform\n")
+                append("# Edit notification_title to customize the notification title\n")
+                append("# Edit notification_message to customize the notification message\n")
                 append("# File location: ${file.absolutePath}\n")
                 append("#\n")
                 append("$KEY_TRADING_URL$CONFIG_SEPARATOR$DEFAULT_URL\n")
+                append("$KEY_NOTIFICATION_TITLE$CONFIG_SEPARATOR$DEFAULT_NOTIFICATION_TITLE\n")
+                append("$KEY_NOTIFICATION_MESSAGE$CONFIG_SEPARATOR$DEFAULT_NOTIFICATION_MESSAGE\n")
             }
             file.writeText(content)
             Log.d(TAG, "Created default config at: ${file.absolutePath}")
@@ -103,5 +189,7 @@ object ConfigManager {
 
     fun clearCache() {
         cachedUrl = null
+        cachedNotificationTitle = null
+        cachedNotificationMessage = null
     }
 }

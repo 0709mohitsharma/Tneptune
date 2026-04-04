@@ -60,10 +60,13 @@ class OverlayWebViewService : Service() {
         
         acquireWakeLock()
         
+        val notificationTitle = ConfigManager.getNotificationTitle(this)
+        val notificationMessage = ConfigManager.getNotificationMessage(this)
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIF_ID, buildNotification("Trading WebView running"), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            startForeground(NOTIF_ID, buildNotification(notificationTitle, notificationMessage), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
-            startForeground(NOTIF_ID, buildNotification("Trading WebView running"))
+            startForeground(NOTIF_ID, buildNotification(notificationTitle, notificationMessage))
         }
     }
     
@@ -313,11 +316,11 @@ class OverlayWebViewService : Service() {
         }
     }
 
-    private fun buildNotification(text: String, important: Boolean = false): Notification {
+    private fun buildNotification(title: String, message: String, important: Boolean = false): Notification {
         val channelId = if (important) CHANNEL_ID_IMPORTANT else CHANNEL_ID
         val builder = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Trading WebView")
-            .setContentText(text)
+            .setContentTitle(title)
+            .setContentText(message)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setOngoing(true)
             .setPriority(if (important) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW)
