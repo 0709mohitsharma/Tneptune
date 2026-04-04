@@ -1,13 +1,14 @@
 package neptune.platform.trading
 
 import android.content.Context
+import android.os.Build
 import android.os.Environment
 import android.util.Log
 import java.io.File
 
 object ConfigManager {
     private const val TAG = "ConfigManager"
-    private const val FOLDER_NAME = "Tneptune"
+    private const val CONFIG_FOLDER = "Tneptune/config"
     private const val FILE_NAME = "config.txt"
     private const val KEY_TRADING_URL = "trading_url"
     private const val KEY_NOTIFICATION_TITLE = "notification_title"
@@ -23,14 +24,13 @@ object ConfigManager {
         KEY_NOTIFICATION_MESSAGE to DEFAULT_NOTIFICATION_MESSAGE
     )
 
-    private var cachedUrl: String? = null
-    private var cachedNotificationTitle: String? = null
-    private var cachedNotificationMessage: String? = null
-
     private fun getConfigFile(): File {
-        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val appFolder = File(downloadsDir, FOLDER_NAME)
-        return File(appFolder, FILE_NAME)
+        val baseDir = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            Environment.getExternalStorageDirectory()
+        } else {
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).parentFile ?: Environment.getExternalStorageDirectory()
+        }
+        return File(baseDir, "$CONFIG_FOLDER/$FILE_NAME")
     }
 
     private fun ensureConfigFileIsComplete(file: File) {
@@ -91,8 +91,6 @@ object ConfigManager {
     }
 
     fun getTradingUrl(context: Context): String {
-        cachedUrl?.let { return it }
-
         val file = getConfigFile()
         Log.d(TAG, "Config file path: ${file.absolutePath}")
         Log.d(TAG, "Config file exists: ${file.exists()}")
@@ -102,30 +100,21 @@ object ConfigManager {
         val value = getConfigValue(file, KEY_TRADING_URL, DEFAULT_URL)
         Log.d(TAG, "Trading URL: $value")
         
-        cachedUrl = value
         return value
     }
 
     fun getNotificationTitle(context: Context): String {
-        cachedNotificationTitle?.let { return it }
-
         val file = getConfigFile()
         ensureConfigFileIsComplete(file)
 
-        val value = getConfigValue(file, KEY_NOTIFICATION_TITLE, DEFAULT_NOTIFICATION_TITLE)
-        cachedNotificationTitle = value
-        return value
+        return getConfigValue(file, KEY_NOTIFICATION_TITLE, DEFAULT_NOTIFICATION_TITLE)
     }
 
     fun getNotificationMessage(context: Context): String {
-        cachedNotificationMessage?.let { return it }
-
         val file = getConfigFile()
         ensureConfigFileIsComplete(file)
 
-        val value = getConfigValue(file, KEY_NOTIFICATION_MESSAGE, DEFAULT_NOTIFICATION_MESSAGE)
-        cachedNotificationMessage = value
-        return value
+        return getConfigValue(file, KEY_NOTIFICATION_MESSAGE, DEFAULT_NOTIFICATION_MESSAGE)
     }
 
     fun saveTradingUrl(context: Context, url: String): Boolean {
@@ -153,7 +142,6 @@ object ConfigManager {
                 file.writeText(updatedContent)
             }
             
-            cachedUrl = url
             Log.d(TAG, "Saved trading URL: $url")
             true
         } catch (e: Exception) {
@@ -168,7 +156,15 @@ object ConfigManager {
 
     private fun createDefaultConfig(file: File) {
         try {
-            file.parentFile?.mkdirs()
+            val parent = file.parentFile ?: run {
+                Log.w(TAG, "No parent directory for config file. Using defaults.")
+                return
+            }
+            parent.mkdirs()
+            if (!parent.canWrite()) {
+                Log.w(TAG, "Cannot write to config directory. Using default values.")
+                return
+            }
             val content = buildString {
                 append("# PeterBrowser Configuration\n")
                 append("# Edit the trading_url below to change the trading platform\n")
@@ -183,13 +179,7 @@ object ConfigManager {
             file.writeText(content)
             Log.d(TAG, "Created default config at: ${file.absolutePath}")
         } catch (e: Exception) {
-            Log.e(TAG, "Error creating default config: ${e.message}")
+            Log.w(TAG, "Error creating default config: ${e.message}. Using defaults.")
         }
-    }
-
-    fun clearCache() {
-        cachedUrl = null
-        cachedNotificationTitle = null
-        cachedNotificationMessage = null
     }
 }

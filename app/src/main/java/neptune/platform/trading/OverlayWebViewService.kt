@@ -72,12 +72,18 @@ class OverlayWebViewService : Service() {
     
     @SuppressLint("WakelockTimeout")
     private fun acquireWakeLock() {
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ON_AFTER_RELEASE,
-            "PeterBrowser:TradingWebViewWakeLock"
-        ).apply {
-            setWorkSource(WorkSource(null))
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ON_AFTER_RELEASE,
+                "PeterBrowser:TradingWebViewWakeLock"
+            ).apply {
+                setWorkSource(WorkSource(null))
+            }
+            wakeLock?.acquire()
+            android.util.Log.d("WebViewService", "Wake lock acquired")
+        } catch (e: Exception) {
+            android.util.Log.e("WebViewService", "Failed to acquire wake lock: ${e.message}")
         }
     }
 
