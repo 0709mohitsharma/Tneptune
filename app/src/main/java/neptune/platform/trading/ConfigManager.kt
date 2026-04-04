@@ -12,7 +12,7 @@ object ConfigManager {
     private const val FOLDER_NAME = "Tneptune"
     private const val FILE_NAME = "config.txt"
     private const val KEY_TRADING_URL = "trading_url"
-    private const val DEFAULT_URL = "https://tv.dhan.co"
+    private const val DEFAULT_URL = "https://tv-beta.dhan.co/"
     private const val CONFIG_SEPARATOR = "="
 
     private var cachedUrl: String? = null
